@@ -10,8 +10,8 @@ services:
       - key: NODE_ENV
         value: production
       - key: RESEND_API_KEY
-        sync: false            # Set in Render Dashboard
+        value: re_hCDpfV51_4SaESE88aSk9Ajr4pk8jqgYi
       - key: OWNER_EMAIL
-        sync: false            # Set in Render Dashboard
+        value: kk.naidu1974@gmail.com
       - key: JWT_SECRET
-        sync: false            # Set in Render Dashboard
+        value: SecureBank_Senior_Refactor_2026
