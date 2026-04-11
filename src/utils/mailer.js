@@ -1,6 +1,8 @@
 const { Resend } = require('resend');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY 
+  ? new Resend(process.env.RESEND_API_KEY)
+  : { emails: { send: async () => { console.warn('⚠️ [DEV] Resend API Key missing. Email skipped.'); return { data: { id: 'mock_id' } }; } } };
 
 /**
  * Sends OTP email using Resend API
