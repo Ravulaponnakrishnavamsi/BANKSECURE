@@ -9,9 +9,7 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: GMAIL_USER
-        sync: false            # Set in Render Dashboard
-      - key: GMAIL_APP_PASSWORD
+      - key: RESEND_API_KEY
         sync: false            # Set in Render Dashboard
       - key: OWNER_EMAIL
         sync: false            # Set in Render Dashboard

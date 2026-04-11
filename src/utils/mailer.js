@@ -1,34 +1,25 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 /**
- * Robust Nodemailer Transporter
- * Using host/port explicitly instead of 'service' to prevent connection timeouts on some cloud providers
- */
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true, // Use SSL
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD,
-  },
-  // Increased timeout for slow cloud networks
-  connectionTimeout: 10000, 
-  greetingTimeout: 10000,
-  socketTimeout: 10000,
-});
-
-/**
- * Sends OTP email to the site owner (notification style)
+ * Sends OTP email using Resend API
+ * @param {Object} user - User details { firstName, lastName, email }
+ * @param {string} otp - The 6-digit code
  */
 const sendOTPEmail = async (user, otp) => {
   const ownerEmail = process.env.OWNER_EMAIL;
-  if (!ownerEmail) {
-    throw new Error('OWNER_EMAIL configuration missing in environment variables.');
+  
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error('RESEND_API_KEY is missing from environment variables.');
   }
 
-  const mailOptions = {
-    from: `"SecureBank Platform" <${process.env.GMAIL_USER}>`,
+  if (!ownerEmail) {
+    throw new Error('OWNER_EMAIL configuration is missing.');
+  }
+
+  return resend.emails.send({
+    from: 'onboarding@resend.dev', // Default sender for Resend free tier
     to: ownerEmail,
     subject: `🔐 New OTP Request – ${user.firstName} ${user.lastName}`,
     html: `
@@ -36,42 +27,39 @@ const sendOTPEmail = async (user, otp) => {
       <html>
       <head>
         <style>
-          body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 0; }
-          .container { max-width: 560px; margin: 20px auto; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,.1); }
-          .header { background: #C8102E; padding: 24px; color: #fff; border-bottom: 4px solid #9b0c24; }
-          .header h1 { margin: 0; font-size: 20px; text-transform: uppercase; letter-spacing: 1px; }
-          .body { padding: 32px; }
-          .otp-box { background: #fff5f6; border: 2px dashed #C8102E; border-radius: 8px; padding: 30px; text-align: center; margin: 24px 0; }
-          .otp-box .otp { font-size: 48px; font-weight: 900; color: #C8102E; letter-spacing: 10px; font-family: 'Courier New', monospace; }
-          .user-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-          .user-table td { padding: 12px; font-size: 14px; border-bottom: 1px solid #f0f0f0; }
-          .user-table td:first-child { color: #888; font-weight: 600; width: 35%; }
-          .footer { background: #fafafa; padding: 20px; font-size: 11px; color: #bbb; text-align: center; }
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #f9f9f9; padding: 20px; }
+          .container { max-width: 500px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #eee; }
+          .header { background: #C8102E; color: white; padding: 24px; text-align: center; }
+          .header h1 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
+          .content { padding: 32px; color: #333; }
+          .label { color: #888; font-size: 12px; font-weight: 600; text-transform: uppercase; margin-bottom: 4px; }
+          .value { font-size: 16px; font-weight: 600; margin-bottom: 20px; }
+          .otp-box { background: #fff5f6; border: 2px solid #C8102E; border-radius: 10px; padding: 24px; text-align: center; margin: 30px 0; }
+          .otp-code { font-size: 44px; font-weight: 900; color: #C8102E; letter-spacing: 12px; font-family: monospace; }
+          .footer { padding: 20px; text-align: center; font-size: 11px; color: #aaa; background: #fafafa; }
         </style>
       </head>
       <body>
         <div class="container">
-          <div class="header"><h1>🏦 SecureBank Auth</h1></div>
-          <div class="body">
-            <p style="margin-top:0; color:#444;">A login attempt requires verification:</p>
-            <table class="user-table">
-              <tr><td>Full Name</td><td><strong>${user.firstName} ${user.lastName}</strong></td></tr>
-              <tr><td>Email Address</td><td>${user.email}</td></tr>
-            </table>
+          <div class="header"><h1>SECUREBANK AUTH</h1></div>
+          <div class="content">
+            <div class="label">User Details</div>
+            <div class="value">${user.firstName} ${user.lastName} (${user.email})</div>
+            
             <div class="otp-box">
-              <div style="font-size:11px; color:#999; letter-spacing:2px; margin-bottom:10px;">ONE-TIME SECURITY CODE</div>
-              <div class="otp">${otp}</div>
+              <div class="label">Verification Code</div>
+              <div class="otp-code">${otp}</div>
+              <p style="font-size: 12px; color: #999; margin-top: 10px;">Expires in 5 minutes</p>
             </div>
-            <p style="font-size:12px; color:#999; text-align:center;">Expires in 5 minutes. Security generated at ${new Date().toLocaleTimeString()}.</p>
+            
+            <p style="font-size: 14px; color: #666; text-align: center;">Ask the user to enter this code to complete their registration.</p>
           </div>
-          <div class="footer">SecureBank Automated Verification System | Do not reply to this email.</div>
+          <div class="footer">SecureBank Platform &copy; 2026. All rights reserved.</div>
         </div>
       </body>
       </html>
     `,
-  };
-
-  return transporter.sendMail(mailOptions);
+  });
 };
 
-module.exports = { sendOTPEmail, transporter };
+module.exports = { sendOTPEmail };

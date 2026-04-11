@@ -15,10 +15,9 @@ A professional, high-speed banking web app focused on instant OTP verification u
 Create a `.env` file in the root directory:
 ```env
 PORT=5000
-GMAIL_USER=your-email@gmail.com
-GMAIL_APP_PASSWORD=your-16-char-app-password
-OWNER_EMAIL=recipient-email@gmail.com
-JWT_SECRET=any-random-long-string
+RESEND_API_KEY=re_123456789
+OWNER_EMAIL=your-recipient-email@gmail.com
+JWT_SECRET=super-secret-key-change-me
 ```
 
 ### 3. Install & Start
@@ -35,11 +34,10 @@ If the OTP system is not working on your live URL, follow these exact steps to f
 2.  **Select your Web Service**: Click on `securebank-app`.
 3.  **Go to Environment Settings**: Click **"Environment"** in the left sidebar.
 4.  **Update Variables**: Ensure the following keys are **exactly** correct:
-    -   `GMAIL_USER`: Your sending Gmail.
-    -   `GMAIL_APP_PASSWORD`: The 16-character password (no spaces).
+    -   `RESEND_API_KEY`: Your API key from Resend.com.
     -   `OWNER_EMAIL`: The email where you want to receive OTPs.
-    -   `JWT_SECRET`: (Add this) Any random string.
-    -   *Delete `FIREBASE_SERVICE_ACCOUNT`* as it is no longer used.
+    -   `JWT_SECRET`: Any random string.
+    -   *Delete `GMAIL_USER`, `GMAIL_APP_PASSWORD`, and `FIREBASE_SERVICE_ACCOUNT`* as they are no longer used.
 5.  **Save Changes**: Click "Save Changes". Render will automatically restart your app.
 
 ## 📁 Project Structure (Senior Architect Level)
