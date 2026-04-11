@@ -9,7 +9,6 @@ const cors       = require('cors');
 const morgan     = require('morgan');
 const rateLimit  = require('express-rate-limit');
 
-const { db } = require('./config/firebase');
 const otpStore = new Map();
 
 const app  = express();
@@ -45,16 +44,6 @@ app.use('/api/', generalLimiter);
    ────────────────────────────────────────────── */
 function generateOTP() {
   return crypto.randomInt(100000, 999999).toString();
-}
-
-/* ──────────────────────────────────────────────
-   Helper: Wrap Async with Timeout
-   ────────────────────────────────────────────── */
-async function withTimeout(promise, ms = 5000, fallbackValue = null) {
-  return Promise.race([
-    promise,
-    new Promise(resolve => setTimeout(() => resolve(fallbackValue), ms))
-  ]);
 }
 
 /* ──────────────────────────────────────────────
@@ -153,31 +142,15 @@ app.post('/api/send-otp', otpLimiter, async (req, res, next) => {
     const otp = generateOTP();
     const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
 
-    // Store in Firestore (or fallback if DB not init)
     const otpData = {
       otp,
       expiresAt,
       user: { firstName, lastName, email }
     };
 
-    if (db) {
-      console.log('📡 Attempting to save OTP to database...');
-      const dbSuccess = await withTimeout(
-        db.collection('otps').doc(email.toLowerCase()).set(otpData).then(() => true),
-        5000,
-        false
-      );
-      if (!dbSuccess) {
-        console.warn('⚠️ Database write timed out. OTP stored in local memory only.');
-      } else {
-        console.log('✅ OTP saved to database.');
-      }
-    } else {
-      console.warn('⚠️ No database connection. OTP stored in local memory only.');
-    }
-
-    // Always store in local map as well for redundancy/fallback
+    // Store in local map only
     otpStore.set(email.toLowerCase(), otpData);
+    console.log(`✅ OTP stored in local memory for ${email}`);
 
     await sendOTPEmail({ firstName, lastName, email }, otp);
     res.json({ success: true, message: 'OTP sent successfully.' });
@@ -198,28 +171,9 @@ app.post('/api/verify-otp', async (req, res, next) => {
     }
 
     const normalizedEmail = email.toLowerCase();
-    let storedOtpData = null;
-
-    // 1. Try Firestore first
-    if (db) {
-      console.log('📡 Attempting to fetch OTP from database...');
-      const doc = await withTimeout(
-        db.collection('otps').doc(normalizedEmail).get(),
-        5000,
-        null
-      );
-      if (doc && doc.exists) {
-        storedOtpData = doc.data();
-        console.log('✅ OTP fetched from database.');
-      } else {
-        console.warn('⚠️ Database fetch timed out or not found. Checking local store...');
-      }
-    } 
     
-    // 2. Try local store if not found in Firestore (or if DB is null)
-    if (!storedOtpData && otpStore.has(normalizedEmail)) {
-      storedOtpData = otpStore.get(normalizedEmail);
-    }
+    // Check in local store
+    const storedOtpData = otpStore.get(normalizedEmail);
 
     if (!storedOtpData) {
       return res.status(400).json({ success: false, error: 'OTP not found or expired.' });
@@ -230,13 +184,11 @@ app.post('/api/verify-otp', async (req, res, next) => {
     }
 
     if (Date.now() > storedOtpData.expiresAt) {
-      if (db) await db.collection('otps').doc(normalizedEmail).delete();
       otpStore.delete(normalizedEmail);
       return res.status(400).json({ success: false, error: 'OTP has expired.' });
     }
 
     // OTP correct – clear it (one-time use)
-    if (db) await db.collection('otps').doc(normalizedEmail).delete();
     otpStore.delete(normalizedEmail);
 
     return res.json({ success: true, message: 'OTP verified successfully.' });
